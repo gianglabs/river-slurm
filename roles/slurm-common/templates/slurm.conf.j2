@@ -25,8 +25,7 @@ NodeName={{host}} RealMemory={{hostvars[host].ansible_memtotal_mb|int - 384}} CP
 
 
 ## Cluster partitions
-#Config here need to automation later
-#PartitionName=graphic Nodes=c32r128-1.ktest,MaxTime=INFINITE State=UP Default=NO
+#
 PartitionName=main Nodes={% for host in groups.slurm_worker %}{{host}},{%endfor%} MaxTime=INFINITE State=UP Default=YES
 
 
@@ -38,8 +37,6 @@ SelectType={{slurm_selecttype|default('select/cons_res')}}
 SelectTypeParameters={{slurm_selecttypeparameters|default('CR_Core_Memory')}}
 {% if slurm_defmempercpu is defined %}
 DefMemPerCPU={{slurm_defmempercpu|int}}
-{% else %}
-#DefMemPerCPU={{ (slurm_workers_max_free_memory_mb / slurm_workers_max_vcpus)|int }}
 {% endif %}
 
 # use the "multifactor" plugin with weights set up to be multi-user ready
