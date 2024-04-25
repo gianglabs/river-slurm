@@ -35,9 +35,7 @@ SchedulerType=sched/backfill
 SchedulerPort=7321
 SelectType={{slurm_selecttype|default('select/cons_res')}}
 SelectTypeParameters={{slurm_selecttypeparameters|default('CR_Core_Memory')}}
-{% if slurm_defmempercpu is defined %}
 DefMemPerCPU={{slurm_defmempercpu|int}}
-{% endif %}
 
 # use the "multifactor" plugin with weights set up to be multi-user ready
 PriorityType=priority/multifactor
@@ -95,7 +93,7 @@ GresTypes=gpu
 
 CheckpointType=checkpoint/none
 #CheckpointType=checkpoint/blcr
-JobCheckpointDir=/var/lib/slurm/checkpoint
+JobCheckpointDir=/var/lib/slurm-llnl/checkpoint
 
 # requeue jobs on node failure, unless users ask otherwise
 JobRequeue=1
@@ -122,9 +120,6 @@ TaskPlugin={{slurm_taskplugin|default('task/none')}}
 
 TmpFs=/tmp
 
-# limit virtual mem usage to this% of real mem usage
-VSizeFactor={{ slurm_allowedramspace|default(100)|int + slurm_allowedswapspace|default(1)|int }}
-
 
 # misc timeout settings (commented lines show the default)
 #
@@ -148,14 +143,14 @@ Waittime=0
 #
 ControlMachine={{SLURM_MASTER_HOST}}
 
-SlurmctldPidFile={{slurm_pid_dir}}/slurmctld.pid
+SlurmctldPidFile=/var/run/slurmctld.pid
 SlurmctldPort=6817
 SlurmctldTimeout=300
 
-StateSaveLocation=/var/spool/slurm
+StateSaveLocation=/var/lib/slurm-llnl/slurmctld
 
-SlurmctldDebug=error
-SlurmctldLogFile=/var/log/slurm/slurmctld.log
+SlurmctldDebug=info
+SlurmctldLogFile=/var/log/slurm-llnl/slurmctld.log
 DebugFlags=backfill,cpu_bind,priority,reservation,selecttype,steps
 
 MailProg=/usr/bin/mail
@@ -164,12 +159,12 @@ MailProg=/usr/bin/mail
 ## `slurmd` settings (compute nodes)
 #
 SlurmdPort=6818
-SlurmdPidFile={{slurm_pid_dir}}/slurmd.pid
-SlurmdSpoolDir=/var/lib/slurm/slurmd
+SlurmdPidFile=/var/run/slurmd.pid
+SlurmdSpoolDir=/var/lib/slurm-llnl/slurmd
 SlurmdTimeout=300
 
-SlurmdDebug=error
-SlurmdLogFile=/var/log/slurm/slurmd.log
+SlurmdDebug=info
+SlurmdLogFile=/var/log/slurm-llnl/slurmd.log
 
 AuthType=auth/munge
 CryptoType=crypto/munge
