@@ -1,0 +1,12 @@
+[Unit]
+Description=Prometheus Slurm Exporter
+After=docker.service
+Requires=docker.service
+
+[Service]
+TimeoutStartSec=0
+Restart=always
+ExecStart=/usr/bin/prometheus-slurm-exporter
+
+[Install]
+WantedBy=multi-user.target

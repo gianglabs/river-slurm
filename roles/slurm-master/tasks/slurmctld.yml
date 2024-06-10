@@ -1,4 +1,11 @@
 ---
+- name: Remove stale clustername file if ClusterName has changed
+  shell: |
+      SAVED="{{ slurm_state_save_location }}/clustername"
+      if [ -f "$SAVED" ] && [ "$(cat $SAVED)" != "{{ slurm_cluster_name }}" ]; then
+        rm -f "$SAVED"
+      fi
+
 - name: Ensure munge is restarted
   service:
       name: munge

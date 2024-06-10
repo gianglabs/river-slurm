@@ -22,14 +22,20 @@
 
 - include_tasks: user_and_group.yml
 - include_tasks: munge.yml
-- name: Create slurm directory
+- name: Create slurm build directory
+  file:
+      path: "{{ slurm_build_dir }}"
+      state: directory
+      mode: 0755
+
+- name: Create slurm runtime directories
   file:
       path: "{{ item }}"
       state: directory
       mode: 0755
       owner: "{{ slurm_username }}"
+      group: "{{ slurm_username }}"
   with_items:
-      - "{{ slurm_build_dir }}"
       - "{{ slurm_conf_dir }}"
       - "{{ slurm_log_dir }}"
       - "{{ slurm_spool_dir }}"

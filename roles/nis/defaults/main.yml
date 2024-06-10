@@ -1,8 +1,6 @@
----
+NIS_DOMAIN: "{{groups.nis_domain|default(groups.slurm_master[0])}}"
 
-NIS_DOMAIN: elasticluster
-
-NIS_MASTER: "{{(groups.nis_master|default(['ypserv']))[0]}}"
+NIS_MASTER: "{{(groups.slurm_master|default(['ypserv']))[0]}}"
 
 NIS_SLAVES: "{{groups.nis_slaves|default([])}}"
 

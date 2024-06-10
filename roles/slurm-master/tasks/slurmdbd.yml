@@ -52,15 +52,15 @@
   tags:
       - slurm
   shell: |
-      sacctmgr --parsable --noheader list cluster | grep '^riverxdata|' \
-        || sacctmgr -i -Q add cluster riverxdata
+      sacctmgr --parsable --noheader list cluster | grep '^{{ slurm_cluster_name }}|' \
+        || sacctmgr -i -Q add cluster {{ slurm_cluster_name }}
 
 - name: Create an account for default cluster
   tags:
       - slurm
   shell: |
-      sacctmgr --immediate --parsable --noheader list account Cluster=riverxdata  | grep '^root|' \
-        || sacctmgr -i --quiet add account root Cluster=riverxdata
+      sacctmgr --immediate --parsable --noheader list account Cluster={{ slurm_cluster_name }} | grep '^root|' \
+        || sacctmgr -i --quiet add account root Cluster={{ slurm_cluster_name }}
 
 - name: Add default user to cluster
   tags:

@@ -11,8 +11,7 @@ setup: requirements.txt
 	pip install -r requirements.txt
 
 vagrant_init: Vagrantfile
-	vagrant up mac-l1-c2r4
-	vagrant up mac-c1-c2r4
+	vagrant up
 
 vagrant_halt:
 	vagrant halt
@@ -25,7 +24,7 @@ vagrant_provision:
 
 cluster:
 	. .env/bin/activate && \
-	ansible-playbook -i inventories/mac_hosts.cluster setup_cluster.yml
+	ansible-playbook -i inventories/hosts setup_cluster.yml
 
 single:
-	ansible-playbook -i inventories/mac_hosts.single single.yml
+	ansible-playbook -i inventories/hosts single.yml

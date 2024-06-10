@@ -1,5 +1,5 @@
-# RIVERXDATA: slurm cluster for minimal installization
-ClusterName=riverxdata
+# Slurm cluster configuration
+ClusterName={{ slurm_cluster_name }}
 ControlMachine={{ groups['slurm_master'][0] }}
 MpiDefault=none
 ReturnToService=2

@@ -1,0 +1,14 @@
+[slurm_master]
+localhost ansible_host=riverxdata.ddns.net ansible_port=9000
+
+[slurm_worker]
+localhost ansible_host=riverxdata.ddns.net ansible_port=9000
+
+[slurm:children]
+slurm_master
+slurm_worker
+
+[all:vars]
+ansible_user=river
+slurm_password=nttg8100
+slurm_account_db_pass=river
