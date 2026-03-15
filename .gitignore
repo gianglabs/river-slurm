@@ -20,6 +20,12 @@ real_hosts
 .env
 env
 
-Vagrantfile# pixi environments
+Vagrantfile
+
+# pixi environments
 .pixi/*
 !.pixi/config.toml
+
+# Secret inventory files (contain passwords, IPs, tokens)
+inventories/hosts.river
+inventories/hosts_river*
