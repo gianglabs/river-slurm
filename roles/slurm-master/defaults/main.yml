@@ -8,8 +8,9 @@ slurm_spool_dir: /var/spool/slurm
 slurm_state_save_location: /var/lib/slurm/slurmctld
 slurm_install_prefix: /usr/local
 slurm_cuda_prefix: /usr/local/cuda
-slurm_configure: "./configure --prefix={{ slurm_install_prefix }}  --sysconfdir={{ slurm_conf_dir }}"
-slurm_configure_nvml: "./configure --prefix={{ slurm_install_prefix }}  --sysconfdir={{ slurm_conf_dir }} --with-nvml={{ slurm_cuda_prefix }}"
+slurm_configure: "./configure --prefix={{ slurm_install_prefix }} --sysconfdir={{ slurm_conf_dir }} --enable-pam --with-pam_dir={{ slurm_pam_lib_dir }}"
+slurm_configure_nvml: "./configure --prefix={{ slurm_install_prefix }} --sysconfdir={{ slurm_conf_dir }} --enable-pam --with-pam_dir={{ slurm_pam_lib_dir }} --with-nvml={{ slurm_cuda_prefix }}"
+slurm_pam_lib_dir: /usr/local/lib/slurm
 slurm_cluster_name: river
 slurm_conf_template: "etc/slurm/slurm.conf.j2"
 slurm_dbd_conf_template: "etc/slurm/slurmdbd.conf.j2"

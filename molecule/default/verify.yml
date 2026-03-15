@@ -1,4 +1,5 @@
 ---
+# ── Controller verification ────────────────────────────────────────────────────
 - name: Verify slurm-master (controller-01)
   hosts: slurm_master
   become: true
@@ -72,6 +73,204 @@
             that: state_dir.stat.pw_name == "slurm"
             fail_msg: "/var/lib/slurm/slurmctld not owned by slurm user"
 
+      # ── PAM checks ─────────────────────────────────────────────────────────
+      - name: Check /etc/localusers exists on controller
+        stat:
+            path: /etc/localusers
+        register: localusers_file
+      - name: Assert /etc/localusers is present on controller
+        assert:
+            that: localusers_file.stat.exists
+            fail_msg: "/etc/localusers not found on controller"
+
+      - name: Check PAM slurm-adopt block is in /etc/pam.d/sshd on controller
+        command: grep -q "pam_slurm_adopt" /etc/pam.d/sshd
+        changed_when: false
+
+      - name: Check prolog script is installed and executable
+        stat:
+            path: /etc/slurm/prolog.d/50-grant-ssh
+        register: prolog_script
+      - name: Assert prolog script is executable
+        assert:
+            that:
+                - prolog_script.stat.exists
+                - prolog_script.stat.executable
+            fail_msg: "/etc/slurm/prolog.d/50-grant-ssh missing or not executable"
+
+      - name: Check epilog script is installed and executable
+        stat:
+            path: /etc/slurm/epilog.d/41-revoke-ssh
+        register: epilog_script
+      - name: Assert epilog script is executable
+        assert:
+            that:
+                - epilog_script.stat.exists
+                - epilog_script.stat.executable
+            fail_msg: "/etc/slurm/epilog.d/41-revoke-ssh missing or not executable"
+
+      # ── testuser checks ────────────────────────────────────────────────────
+      - name: Check testuser OS account exists on controller
+        getent:
+            database: passwd
+            key: testuser
+        register: testuser_passwd
+      - name: Assert testuser account is present on controller
+        assert:
+            that: testuser_passwd.ansible_facts.getent_passwd['testuser'] is defined
+            fail_msg: "testuser OS account not found on controller"
+
+      # ── sinfo sanity check ─────────────────────────────────────────────────
+      - name: Run sinfo to verify cluster is accessible
+        command: /usr/local/bin/sinfo --noheader
+        changed_when: false
+        register: sinfo_out
+      - name: Assert sinfo returned output
+        assert:
+            that: sinfo_out.rc == 0
+            fail_msg: "sinfo returned non-zero exit code"
+
+# ── Reconcile worker node hardware with slurm.conf ────────────────────────────
+# In Docker containers slurmd may detect different CPU topology than what
+# ansible_processor_vcpus reported during converge (slurm.conf template used
+# that fact). We query slurmd directly and update slurm.conf on all nodes so
+# the worker's registration is accepted.
+- name: Fix NodeName in slurm.conf to match actual worker hardware
+  hosts: slurm_worker
+  become: true
+  tasks:
+      - name: Query actual hardware from slurmd
+        command: /usr/local/sbin/slurmd -C
+        register: slurmd_hw
+        changed_when: false
+
+      - name: Parse hardware values
+        set_fact:
+            worker_cpus: "{{ slurmd_hw.stdout | regex_search('CPUs=(\\d+)', '\\1') | first }}"
+            worker_sockets: "{{ slurmd_hw.stdout | regex_search('SocketsPerBoard=(\\d+)', '\\1') | first }}"
+            worker_cores: "{{ slurmd_hw.stdout | regex_search('CoresPerSocket=(\\d+)', '\\1') | first }}"
+            worker_threads: "{{ slurmd_hw.stdout | regex_search('ThreadsPerCore=(\\d+)', '\\1') | first }}"
+            worker_mem: "{{ slurmd_hw.stdout | regex_search('RealMemory=(\\d+)', '\\1') | first }}"
+            cacheable: true
+
+      - name: Update NodeName line in slurm.conf on worker
+        lineinfile:
+            path: /etc/slurm/slurm.conf
+            regexp: '^NodeName=worker-01\s.*'
+            line: >-
+                NodeName=worker-01
+                CPUs={{ worker_cpus }}
+                RealMemory={{ worker_mem }}
+                State=UNKNOWN
+            state: present
+
+      - name: Restart slurmd on worker to re-register with new config
+        service:
+            name: slurmd
+            state: restarted
+
+- name: Update NodeName in slurm.conf on controller and reconfigure slurmctld
+  hosts: slurm_master
+  become: true
+  tasks:
+      - name: Get actual CPU/memory values from worker (cached facts)
+        set_fact:
+            _worker_hw: "{{ hostvars['worker-01'] }}"
+
+      - name: Update NodeName line in slurm.conf on controller
+        lineinfile:
+            path: /etc/slurm/slurm.conf
+            regexp: '^NodeName=worker-01\s.*'
+            line: >-
+                NodeName=worker-01
+                CPUs={{ hostvars['worker-01']['worker_cpus'] }}
+                RealMemory={{ hostvars['worker-01']['worker_mem'] }}
+                State=UNKNOWN
+            state: present
+
+      - name: Reconfigure slurmctld
+        command: /usr/local/bin/scontrol reconfigure
+        changed_when: true
+
+      - name: Resume worker node (clear drain/invalid_reg)
+        command: /usr/local/bin/scontrol update nodename=worker-01 state=resume
+        changed_when: true
+        failed_when: false
+
+      - name: Wait for worker node to become idle
+        command: /usr/local/bin/sinfo -n worker-01 -h -o "%T"
+        register: node_state_poll
+        until: node_state_poll.stdout | trim in ['idle', 'allocated', 'mixed']
+        retries: 24
+        delay: 5
+        changed_when: false
+
+      # ── SLURM accounting — add testuser ────────────────────────────────────
+      - name: Ensure default account exists in SLURM accounting
+        command: >
+            /usr/local/bin/sacctmgr -i add account default
+            description="Default account" organization="river"
+        register: sacctmgr_account
+        changed_when: "'Adding Account' in sacctmgr_account.stdout"
+        failed_when: >
+            sacctmgr_account.rc != 0 and
+            'Already existing' not in sacctmgr_account.stdout and
+            'Nothing added' not in sacctmgr_account.stdout
+
+      - name: Add testuser to SLURM accounting
+        command: >
+            /usr/local/bin/sacctmgr -i add user testuser
+            account=default cluster=river
+        register: sacctmgr_user
+        changed_when: "'Adding User' in sacctmgr_user.stdout"
+        failed_when: >
+            sacctmgr_user.rc != 0 and
+            'Already existing' not in sacctmgr_user.stdout and
+            'Nothing added' not in sacctmgr_user.stdout
+
+      # ── Job submission as testuser ─────────────────────────────────────────
+      - name: Ensure testuser scratch directory exists
+        file:
+            path: /home/testuser/scratch
+            state: directory
+            owner: testuser
+            group: testuser
+            mode: "0755"
+
+      - name: Write job script
+        copy:
+            dest: /home/testuser/job.sh
+            owner: testuser
+            group: testuser
+            mode: "0755"
+            content: |
+                #!/bin/bash
+                #SBATCH --job-name=mol-test
+                #SBATCH --output=/home/testuser/scratch/slurm-%j.out
+                #SBATCH --error=/home/testuser/scratch/slurm-%j.err
+                #SBATCH --ntasks=1
+                touch /home/testuser/scratch/job_result.txt
+                chmod 600 /home/testuser/scratch/job_result.txt
+
+      - name: Submit job as testuser
+        command: /usr/local/bin/sbatch /home/testuser/job.sh
+        become_user: testuser
+        register: sbatch_out
+        changed_when: true
+
+      - name: Extract job ID
+        set_fact:
+            slurm_job_id: "{{ sbatch_out.stdout | regex_search('Submitted batch job (\\d+)', '\\1') | first }}"
+
+      - name: Poll squeue until job completes (max 120 s)
+        command: /usr/local/bin/squeue --job {{ slurm_job_id }} --noheader
+        register: squeue_poll
+        until: squeue_poll.stdout | trim == ""
+        retries: 24
+        delay: 5
+        changed_when: false
+
+# ── Worker verification ────────────────────────────────────────────────────────
 - name: Verify slurm-worker (worker-01)
   hosts: slurm_worker
   become: true
@@ -113,3 +312,41 @@
                 - worker_munge_key.stat.exists
                 - worker_munge_key.stat.mode == "0400"
             fail_msg: "munge.key missing or wrong permissions on worker"
+
+      - name: Check /etc/localusers exists on worker
+        stat:
+            path: /etc/localusers
+        register: worker_localusers
+      - name: Assert /etc/localusers is present on worker
+        assert:
+            that: worker_localusers.stat.exists
+            fail_msg: "/etc/localusers not found on worker"
+
+      - name: Check PAM slurm-adopt block is in /etc/pam.d/sshd on worker
+        command: grep -q "pam_slurm_adopt" /etc/pam.d/sshd
+        changed_when: false
+
+      - name: Check testuser OS account exists on worker
+        getent:
+            database: passwd
+            key: testuser
+        register: worker_testuser_passwd
+      - name: Assert testuser account is present on worker
+        assert:
+            that: worker_testuser_passwd.ansible_facts.getent_passwd['testuser'] is defined
+            fail_msg: "testuser OS account not found on worker"
+
+      # ── Job result checks (job ran on this worker) ─────────────────────────
+      - name: Check job result file exists on worker
+        stat:
+            path: /home/testuser/scratch/job_result.txt
+        register: job_result_file
+      - name: Assert job result file exists on worker
+        assert:
+            that: job_result_file.stat.exists
+            fail_msg: "/home/testuser/scratch/job_result.txt was not created by the job"
+
+      - name: Assert job result file has mode 0600
+        assert:
+            that: job_result_file.stat.mode == "0600"
+            fail_msg: "job_result.txt does not have mode 0600 (got {{ job_result_file.stat.mode }})"

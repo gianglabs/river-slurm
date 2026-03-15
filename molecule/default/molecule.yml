@@ -42,8 +42,23 @@ provisioner:
             all:
                 ansible_user: root
                 slurm_account_db_pass: testpass
-        links:
-            group_vars: ../../group_vars
+                # Test user created by the users role
+                cluster_users:
+                    - name: testuser
+                      password: "TestPass123!"
+                      uid: 10001
+                # PAM: do not restrict node access in tests (adopt-only)
+                # so the test user can always SSH without needing a live job first
+                slurm_restrict_node_access: false
+                slurm_allow_ssh_users:
+                    - root
+                    - testuser
+                # OS/distro detection helpers (mirrors group_vars/all)
+                is_debian_compatible: "{{ ansible_os_family == 'Debian' }}"
+                is_rhel_compatible: "{{ ansible_os_family == 'RedHat' }}"
+                is_ubuntu: "{{ ansible_distribution == 'Ubuntu' }}"
+                is_debian: "{{ ansible_distribution == 'Debian' }}"
+                is_container: "{{ ansible_virtualization_type | default('') in ['docker', 'podman', 'container', 'lxc', 'lxc-libvirt'] }}"
     playbooks:
         converge: converge.yml
         verify: verify.yml

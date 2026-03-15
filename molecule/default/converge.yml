@@ -9,6 +9,7 @@
   become_user: root
   roles:
       - slurm-common
+      - users
 
 - name: Controller
   hosts: slurm_master
@@ -16,6 +17,7 @@
   become_user: root
   roles:
       - slurm-master
+      - slurm-pam
 
 - name: Worker
   hosts: slurm_worker
@@ -23,3 +25,4 @@
   become_user: root
   roles:
       - slurm-worker
+      - slurm-pam

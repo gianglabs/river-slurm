@@ -1,0 +1,59 @@
+---
+- name: Install openssh-server (Ubuntu/Debian)
+  apt:
+      name: openssh-server
+      state: present
+  when: ansible_os_family == "Debian"
+
+- name: Create home base directory
+  file:
+      path: /home
+      state: directory
+      mode: "0755"
+
+- name: Create cluster users
+  user:
+      name: "{{ item.name }}"
+      uid: "{{ item.uid | default(omit) }}"
+      password: "{{ item.password | password_hash('sha512') }}"
+      shell: "{{ item.shell | default('/bin/bash') }}"
+      home: "{{ item.home | default('/home/' + item.name) }}"
+      create_home: true
+      groups: "{{ item.groups | default([]) }}"
+      append: true
+      state: "{{ item.state | default('present') }}"
+      update_password: on_create
+  loop: "{{ cluster_users }}"
+  loop_control:
+      label: "{{ item.name }}"
+
+- name: Deploy SSH authorized keys for cluster users
+  authorized_key:
+      user: "{{ item.name }}"
+      key: "{{ item.ssh_key }}"
+      state: present
+  loop: "{{ cluster_users }}"
+  loop_control:
+      label: "{{ item.name }}"
+  when: item.ssh_key is defined and item.ssh_key | length > 0
+
+- name: Allow password-based SSH login
+  lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: "^#?PasswordAuthentication"
+      line: "PasswordAuthentication yes"
+      state: present
+  notify: restart sshd
+  when: users_allow_password_ssh
+
+- name: Enable PAM in sshd_config
+  lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: "^#?UsePAM"
+      line: "UsePAM yes"
+      state: present
+  notify: restart sshd
+  when: users_allow_password_ssh
+
+- name: Flush handlers to restart sshd if config changed
+  meta: flush_handlers

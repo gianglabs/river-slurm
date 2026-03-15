@@ -1,0 +1,14 @@
+---
+# PAM library directory — Ubuntu 24.04 x86_64
+slurm_pam_lib_dir: /usr/local/lib/slurm
+
+# Always-allowed SSH users (e.g. admin, ansible operator).
+# root is always allowed via a separate PAM rule.
+slurm_allow_ssh_users:
+    - root
+
+# If true, SSH to worker nodes is restricted to users with a running SLURM job
+# (or listed in slurm_allow_ssh_users). Set false to adopt-only (no blocking).
+slurm_restrict_node_access: true
+
+slurm_conf_dir: /etc/slurm

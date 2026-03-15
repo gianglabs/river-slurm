@@ -81,6 +81,15 @@
       remote_src: yes
   when: not slurm_already_built
 
+- name: Create PAM lib directory (required before configure --with-pam_dir)
+  file:
+      path: "{{ slurm_pam_lib_dir }}"
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+  when: not slurm_already_built
+
 - name: Configure Slurm manually
   shell: "cd {{ slurm_build_dir }} && {{ slurm_configure }}"
   when: not slurm_already_built

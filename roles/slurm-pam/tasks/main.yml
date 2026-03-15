@@ -1,0 +1,94 @@
+---
+# ── /etc/localusers ───────────────────────────────────────────────────────────
+- name: Install /etc/localusers (SSH allowlist)
+  template:
+      src: etc/localusers.j2
+      dest: "{{ item }}"
+      owner: root
+      group: root
+      mode: "0644"
+  loop:
+      - /etc/localusers
+      - "{{ slurm_conf_dir }}/localusers.backup"
+
+# ── PAM ───────────────────────────────────────────────────────────────────────
+- name: Configure /etc/pam.d/sshd — restrict access to job users (pam_slurm_adopt)
+  blockinfile:
+      path: /etc/pam.d/sshd
+      block: |
+          -account sufficient {{ slurm_pam_lib_dir }}/pam_slurm_adopt.so action_no_jobs=ignore
+          -account sufficient pam_listfile.so item=user sense=allow file=/etc/localusers
+          -account required  {{ slurm_pam_lib_dir }}/pam_slurm_adopt.so
+      insertafter: EOF
+      marker: "# {mark} ANSIBLE MANAGED BLOCK (slurm-pam)"
+  when: slurm_restrict_node_access
+
+- name: Configure /etc/pam.d/sshd — adopt-only (no access denial)
+  blockinfile:
+      path: /etc/pam.d/sshd
+      block: |
+          -account sufficient {{ slurm_pam_lib_dir }}/pam_slurm_adopt.so action_no_jobs=ignore
+          -account sufficient pam_listfile.so item=user sense=allow file=/etc/localusers
+      insertafter: EOF
+      marker: "# {mark} ANSIBLE MANAGED BLOCK (slurm-pam)"
+  when: not slurm_restrict_node_access
+
+- name: Comment out pam_systemd.so — conflicts with pam_slurm_adopt (Ubuntu)
+  replace:
+      path: /etc/pam.d/common-session
+      regexp: '^([^#].*pam_systemd\.so.*)'
+      replace: '# \1  # ANSIBLE MANAGED (slurm-pam)'
+  when: ansible_distribution == "Ubuntu"
+
+# ── Prolog / Epilog SSH scripts ───────────────────────────────────────────────
+- name: Create prolog.d directory
+  file:
+      path: "{{ slurm_conf_dir }}/prolog.d"
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+
+- name: Create epilog.d directory
+  file:
+      path: "{{ slurm_conf_dir }}/epilog.d"
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+
+- name: Install prolog — grant SSH on job start
+  template:
+      src: etc/slurm/prolog.d/50-grant-ssh.j2
+      dest: "{{ slurm_conf_dir }}/prolog.d/50-grant-ssh"
+      owner: root
+      group: root
+      mode: "0755"
+
+- name: Install epilog — revoke SSH on job end
+  template:
+      src: etc/slurm/epilog.d/41-revoke-ssh.j2
+      dest: "{{ slurm_conf_dir }}/epilog.d/41-revoke-ssh"
+      owner: root
+      group: root
+      mode: "0755"
+
+# ── slurm.conf prolog/epilog pointers ─────────────────────────────────────────
+- name: Set Prolog in slurm.conf
+  lineinfile:
+      path: "{{ slurm_conf_dir }}/slurm.conf"
+      regexp: "^#?Prolog="
+      line: "Prolog={{ slurm_conf_dir }}/prolog.d/50-grant-ssh"
+      state: present
+  notify: restart slurmctld
+
+- name: Set Epilog in slurm.conf
+  lineinfile:
+      path: "{{ slurm_conf_dir }}/slurm.conf"
+      regexp: "^#?Epilog="
+      line: "Epilog={{ slurm_conf_dir }}/epilog.d/41-revoke-ssh"
+      state: present
+  notify: restart slurmctld
+
+- name: Flush handlers
+  meta: flush_handlers

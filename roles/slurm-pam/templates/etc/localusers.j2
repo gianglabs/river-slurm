@@ -1,0 +1,6 @@
+---
+# /etc/localusers — users always allowed SSH regardless of job status
+root
+{% for user in slurm_allow_ssh_users %}
+{{ user }}
+{% endfor %}
