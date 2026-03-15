@@ -20,4 +20,6 @@ real_hosts
 .env
 env
 
-Vagrantfile
+Vagrantfile# pixi environments
+.pixi/*
+!.pixi/config.toml

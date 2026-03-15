@@ -1,6 +1,6 @@
 #!/bin/bash
 # Config
-if [ "$#" -lt 2 ]; then
+if [ "$#" -lt 1 ]; then
     echo "Usage: $0 <UBUNTU_VERSION> <RUN_VM>"
     exit 1
 fi

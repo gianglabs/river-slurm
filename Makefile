@@ -1,30 +1,12 @@
-all: minio setup vagrant server single
+.PHONY: vm-start vm-status cluster
+${HOME}/.pixi/bin/pixi:
+	curl -sSL https://pixi.sh/install.sh | sh
 
-.PHONY: minio server client vagrant setup single
+vm-start:
+	bash scripts/setup.sh 24.04 true
 
-minio:
-	docker compose up -d createbuckets
-
-setup: requirements.txt
-	python3 -m venv .env && \
-	. .env/bin/activate && \
-	pip install -r requirements.txt
-
-vagrant_init: Vagrantfile
-	vagrant up
-
-vagrant_halt:
-	vagrant halt
-
-vagrant_destroy:
-	vagrant destroy -y
-
-vagrant_provision:
-	vagrant provision
+vm-status:
+	cd scripts/virtual/24.04 && vagrant status
 
 cluster:
-	. .env/bin/activate && \
-	ansible-playbook -i inventories/hosts setup_cluster.yml
-
-single:
-	ansible-playbook -i inventories/hosts single.yml
+	${HOME}/.pixi/bin/pixi run ansible-playbook -i inventories/hosts.dev setup_cluster.yml

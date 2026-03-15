@@ -5,6 +5,7 @@
       insertafter: '^GRUB_CMDLINE_LINUX=[^\\$]'
       line: 'GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} cgroup_enable=memory swapaccount=1"'
   register: update_grub
+  when: not is_container
 
 - name: update grub
   block:
@@ -16,7 +17,8 @@
         reboot:
             reboot_timeout: "{{ slurm_node_reboot_timeout }}"
 
-  when: update_grub.changed and ansible_os_family == "Debian"
+  when: not is_container and update_grub.changed and ansible_os_family == "Debian"
+
 - name: Deploy SLURM cgroup configuration file (main)
   template:
       src: "etc/slurm/cgroup.conf"

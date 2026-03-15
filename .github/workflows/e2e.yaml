@@ -1,0 +1,42 @@
+---
+name: e2e
+
+on:
+    push:
+        branches: [main, master]
+    pull_request:
+        branches: [main, master]
+
+jobs:
+    molecule:
+        name: Molecule e2e
+        runs-on: ubuntu-24.04
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up pixi
+              uses: prefix-dev/setup-pixi@v0.8.1
+              with:
+                  pixi-version: latest
+                  cache: true
+
+            - name: Install Ansible Galaxy roles
+              run: pixi run ansible-galaxy install -r requirements.yml -p roles
+
+            - name: Cache Slurm build artifacts
+              uses: actions/cache@v4
+              with:
+                  path: /tmp/slurm-build-cache
+                  key: slurm-build-${{ hashFiles('roles/slurm-common/defaults/main.yml', 'roles/slurm-master/defaults/main.yml') }}
+
+            - name: Patch molecule-docker boolean bug (ansible-core 2.19 compat)
+              run: pixi run patch-molecule-docker
+
+            - name: Run Molecule
+              run: pixi run molecule test
+              env:
+                  MOLECULE_EPHEMERAL_DIRECTORY: /tmp/molecule
+                  # Pass the Docker socket so molecule-docker can manage containers
+                  DOCKER_HOST: unix:///var/run/docker.sock

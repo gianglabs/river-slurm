@@ -102,6 +102,11 @@ is_ubuntu_20_10_or_later: "{{ is_ubuntu and (is_ubuntu_20_10 or ansible_distribu
 init_is_systemd: "{{ ansible_service_mgr == 'systemd' }}"
 init_is_upstart: "{{ ansible_service_mgr == 'upstart' }}"
 
+# Container detection — true when running inside Docker/Podman/LXC
+# ansible_virtualization_type is set to 'docker', 'podman', 'container', or 'lxc'
+# when Ansible's setup module detects a containerised environment.
+is_container: "{{ ansible_virtualization_type | default('') in ['docker', 'podman', 'container', 'lxc', 'lxc-libvirt'] }}"
+
 
 # ElastiCluster global variables
 use_proxy: "{{ proxy_url|default('') != '' }}"

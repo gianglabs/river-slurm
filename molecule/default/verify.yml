@@ -1,0 +1,115 @@
+---
+- name: Verify slurm-master (controller-01)
+  hosts: slurm_master
+  become: true
+  tasks:
+      - name: Check slurm.conf exists
+        stat:
+            path: /etc/slurm/slurm.conf
+        register: slurm_conf
+      - name: Assert slurm.conf is present
+        assert:
+            that: slurm_conf.stat.exists
+            fail_msg: "/etc/slurm/slurm.conf not found"
+
+      - name: Check slurmdbd.conf exists
+        stat:
+            path: /etc/slurm/slurmdbd.conf
+        register: slurmdbd_conf
+      - name: Assert slurmdbd.conf is present
+        assert:
+            that: slurmdbd_conf.stat.exists
+            fail_msg: "/etc/slurm/slurmdbd.conf not found"
+
+      - name: Check ClusterName in slurm.conf
+        command: grep -q "^ClusterName=river$" /etc/slurm/slurm.conf
+        changed_when: false
+
+      - name: Check slurmctld binary exists
+        stat:
+            path: /usr/local/sbin/slurmctld
+        register: slurmctld_bin
+      - name: Assert slurmctld binary is installed
+        assert:
+            that: slurmctld_bin.stat.exists
+            fail_msg: "slurmctld binary not found at /usr/local/sbin/slurmctld"
+
+      - name: Check slurmdbd binary exists
+        stat:
+            path: /usr/local/sbin/slurmdbd
+        register: slurmdbd_bin
+      - name: Assert slurmdbd binary is installed
+        assert:
+            that: slurmdbd_bin.stat.exists
+            fail_msg: "slurmdbd binary not found at /usr/local/sbin/slurmdbd"
+
+      - name: Check munge key is deployed
+        stat:
+            path: /etc/munge/munge.key
+        register: munge_key
+      - name: Assert munge key exists and has correct permissions
+        assert:
+            that:
+                - munge_key.stat.exists
+                - munge_key.stat.mode == "0400"
+            fail_msg: "munge.key missing or wrong permissions"
+
+      - name: Check slurm log directory is owned by slurm
+        stat:
+            path: /var/log/slurm
+        register: slurm_log_dir
+      - name: Assert log dir is owned by slurm
+        assert:
+            that: slurm_log_dir.stat.pw_name == "slurm"
+            fail_msg: "/var/log/slurm not owned by slurm user"
+
+      - name: Check StateSaveLocation exists and is owned by slurm
+        stat:
+            path: /var/lib/slurm/slurmctld
+        register: state_dir
+      - name: Assert state dir is owned by slurm
+        assert:
+            that: state_dir.stat.pw_name == "slurm"
+            fail_msg: "/var/lib/slurm/slurmctld not owned by slurm user"
+
+- name: Verify slurm-worker (worker-01)
+  hosts: slurm_worker
+  become: true
+  tasks:
+      - name: Check slurm.conf exists on worker
+        stat:
+            path: /etc/slurm/slurm.conf
+        register: worker_slurm_conf
+      - name: Assert slurm.conf is present on worker
+        assert:
+            that: worker_slurm_conf.stat.exists
+            fail_msg: "/etc/slurm/slurm.conf not found on worker"
+
+      - name: Check cgroup.conf exists on worker
+        stat:
+            path: /etc/slurm/cgroup.conf
+        register: cgroup_conf
+      - name: Assert cgroup.conf is present on worker
+        assert:
+            that: cgroup_conf.stat.exists
+            fail_msg: "/etc/slurm/cgroup.conf not found on worker"
+
+      - name: Check slurmd binary exists
+        stat:
+            path: /usr/local/sbin/slurmd
+        register: slurmd_bin
+      - name: Assert slurmd binary is installed
+        assert:
+            that: slurmd_bin.stat.exists
+            fail_msg: "slurmd binary not found at /usr/local/sbin/slurmd"
+
+      - name: Check munge key is deployed on worker
+        stat:
+            path: /etc/munge/munge.key
+        register: worker_munge_key
+      - name: Assert worker munge key exists and has correct permissions
+        assert:
+            that:
+                - worker_munge_key.stat.exists
+                - worker_munge_key.stat.mode == "0400"
+            fail_msg: "munge.key missing or wrong permissions on worker"

@@ -7,6 +7,12 @@
       - mariadb-server
       - python3-mysqldb
 
+- name: Start MariaDB service
+  service:
+      name: mariadb
+      state: started
+      enabled: yes
+
 - name: Setup slurm db user
   mysql_user:
       name: "{{SLURM_ACCOUNTING_DB_USER}}"
