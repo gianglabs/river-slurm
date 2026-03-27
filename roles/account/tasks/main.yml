@@ -1,0 +1,88 @@
+---
+# Variable processing - split comma-separated strings into lists
+- name: Process users variable
+  set_fact:
+    users_list: "{{ users.split(',') | map('trim') | list }}"
+  when:
+    - users is defined
+    - users | string | length > 0
+    - users.split(',') | length > 0
+
+- name: Process delete_users variable
+  set_fact:
+    delete_users_list: "{{ delete_users.split(',') | map('trim') | list }}"
+  when:
+    - delete_users is defined
+    - delete_users | string | length > 0
+    - delete_users.split(',') | length > 0
+
+# User Creation Section
+- name: Create Linux users on all nodes
+  user:
+    name: "{{ item }}"
+    password: "{{ default_password | password_hash('sha512') }}"
+    shell: /bin/bash
+    home: "/home/{{ item }}"
+    create_home: yes
+    state: present
+  loop: "{{ users_list }}"
+  when: users_list is defined
+  register: user_creation_result
+
+- name: Force password change on first login
+  command: chage -d 0 "{{ item }}"
+  loop: "{{ users_list }}"
+  when:
+    - users_list is defined
+    - user_creation_result is defined
+  changed_when: true
+
+# Slurm Account Management Section (runs on master node only)
+- name: Add users to Slurm root account
+  tags:
+    - slurm
+  shell: |
+    set -ex
+    # Check if user exists in Slurm
+    if sacctmgr --immediate --parsable --noheader list user Account=root | grep -q "^{{ item }}|"; then
+      echo "User {{ item }} already exists in Slurm root account"
+      exit 0
+    fi
+    # Add user to Slurm root account
+    sacctmgr --immediate --quiet add user "{{ item }}" DefaultAccount=root
+  loop: "{{ users_list }}"
+  when:
+    - users_list is defined
+    - inventory_hostname in groups['slurm_master']
+  register: slurm_add_result
+  changed_when: "'already exists' not in slurm_add_result.stdout"
+
+# User Deletion Section
+- name: Remove users from Slurm root account
+  tags:
+    - slurm
+  shell: |
+    set -ex
+    # Check if user exists in Slurm
+    if ! sacctmgr --immediate --parsable --noheader list user Account=root | grep -q "^{{ item }}|"; then
+      echo "User {{ item }} does not exist in Slurm"
+      exit 0
+    fi
+    # Remove user from Slurm
+    sacctmgr --immediate --quiet delete user "{{ item }}"
+  loop: "{{ delete_users_list }}"
+  when:
+    - delete_users_list is defined
+    - inventory_hostname in groups['slurm_master']
+  register: slurm_delete_result
+  changed_when: "'does not exist' not in slurm_delete_result.stdout"
+  ignore_errors: yes
+
+- name: Delete Linux users from all nodes
+  user:
+    name: "{{ item }}"
+    state: absent
+    remove: yes
+    force: yes
+  loop: "{{ delete_users_list }}"
+  when: delete_users_list is defined

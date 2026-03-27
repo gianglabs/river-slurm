@@ -1,6 +1,0 @@
----
-- name: restart slurmctld
-  service:
-      name: slurmctld
-      state: restarted
-  when: inventory_hostname in groups['slurm_master']

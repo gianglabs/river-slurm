@@ -1,0 +1,42 @@
+---
+- name: All
+  hosts: all
+  become: true
+  become_user: root
+  roles:
+    - hosts
+    - slurm-common
+    - slurm-account
+    - geerlingguy.docker
+    - prometheus-node-exporter
+
+- name: Login and controller
+  hosts: slurm_master
+  become: true
+  become_user: root
+  roles:
+    - slurm-master
+    - prometheus
+    - grafana
+    - alertmanager
+    - rsyslog_server
+    - prometheus-slurm-exporter
+    - role: "nfs-server"
+      NFS_EXPORTS:
+        - path: "/home/"
+          clients: "{{groups.slurm_worker|default([])}}"
+        - path: "/data/"
+          clients: "{{groups.slurm_worker|default([])}}"
+
+- name: Worker
+  hosts: slurm_worker
+  become: true
+  become_user: root
+  roles:
+    - slurm-worker
+    - rsyslog_client
+    - nvidia.nvidia_driver
+    - role: "nfs-client"
+      NFS_MOUNTS:
+        - fs: "{{groups.slurm_master[0]}}:/home"
+          mountpoint: "/home"

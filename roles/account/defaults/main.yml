@@ -1,0 +1,11 @@
+---
+# Default password for new users (should be overridden in inventory)
+default_password: "changeme"
+
+# Comma-separated list of users to create
+# Example: users: "user1,user2,user3"
+users: ""
+
+# Comma-separated list of users to delete
+# Example: delete_users: "olduser1,olduser2"
+delete_users: ""

@@ -9,4 +9,4 @@ vm-status:
 	cd scripts/virtual/24.04 && vagrant status
 
 cluster:
-	${HOME}/.pixi/bin/pixi run ansible-playbook -i inventories/hosts.dev setup_cluster.yml
+	${HOME}/.pixi/bin/pixi run ansible-playbook -i inventories/hosts.dev.yml playbooks/slurm-cluster/slurm.yml
