@@ -4,6 +4,12 @@ name = "river-slurm"
 platforms = ["linux-64"]
 version = "0.1.0"
 
+[tasks]
+# Re-apply the molecule-docker boolean bug workaround after every `pixi install`.
+# molecule-docker 2.1.0 uses `when: (lookup('env', 'HOME'))` which ansible-core
+# 2.19+ rejects as a non-boolean. Until a fixed release is available, patch inline.
+patch-molecule-docker = { cmd = "python -c \"\nimport site, pathlib, re\nfor sp in site.getsitepackages():\n    for name in ['create.yml', 'destroy.yml']:\n        p = pathlib.Path(sp) / 'molecule_docker/playbooks' / name\n        if not p.exists(): continue\n        txt = p.read_text()\n        new = re.sub(r\\\"when: \\\\(lookup\\\\('env', 'HOME'\\\\)\\\\)\\\", \\\"when: (lookup('env', 'HOME') | length > 0)\\\", txt)\n        if new != txt:\n            p.write_text(new)\n            print(f'Patched {p}')\n        else:\n            print(f'Already patched or not found: {p}')\n\"" }
+
 [dependencies]
 python = "==3.11"
 
