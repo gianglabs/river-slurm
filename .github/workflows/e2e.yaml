@@ -25,9 +25,6 @@ jobs:
           path: /tmp/slurm-build-cache
           key: slurm-build-${{ hashFiles('roles/slurm-common/defaults/main.yml', 'roles/slurm-master/defaults/main.yml') }}
 
-      - name: Patch molecule-docker boolean bug (ansible-core 2.19 compat)
-        run: pixi run patch-molecule-docker
-
       - name: Run Molecule
         run: pixi run molecule test
         env:
