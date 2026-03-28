@@ -24,9 +24,12 @@ jobs:
         with:
           path: /tmp/slurm-build-cache
           key: slurm-build-${{ hashFiles('roles/slurm-common/defaults/main.yml', 'roles/slurm-master/defaults/main.yml') }}
+            
+      - name: Patch molecule-docker boolean bug (ansible-core 2.19 compat)
+        run: make fix-molecule-docker
 
       - name: Run Molecule
-        run: pixi run molecule test
+        run: make test
         env:
           MOLECULE_EPHEMERAL_DIRECTORY: /tmp/molecule
           # Pass the Docker socket so molecule-docker can manage containers

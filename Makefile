@@ -16,3 +16,7 @@ test: ${HOME}/.pixi/bin/pixi
 
 cluster: ${HOME}/.pixi/bin/pixi
 	${HOME}/.pixi/bin/pixi run ansible-playbook -i inventories/hosts.dev.yml playbooks/slurm-cluster/slurm.yml
+
+# fix fix-molecule-docker
+fix-molecule-docker:
+	${HOME}/.pixi/bin/pixi run patch-molecule-docker
