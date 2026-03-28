@@ -43,6 +43,7 @@ provisioner:
                 ansible_user: root
                 ansible_remote_tmp: /tmp/.ansible/tmp
                 slurm_account_db_pass: testpass
+                users: testuser
                 # Test user created by the users role
                 cluster_users:
                     - name: testuser
