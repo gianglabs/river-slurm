@@ -41,6 +41,7 @@ provisioner:
         group_vars:
             all:
                 ansible_user: root
+                ansible_remote_tmp: /tmp/.ansible/tmp
                 slurm_account_db_pass: testpass
                 # Test user created by the users role
                 cluster_users:
@@ -64,6 +65,8 @@ provisioner:
         verify: verify.yml
     env:
         ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
+        DOCKER_CONTEXT: default
+        DOCKER_HOST: "unix:///var/run/docker.sock"
 
 verifier:
     name: ansible

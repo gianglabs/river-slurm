@@ -9,7 +9,7 @@
   become_user: root
   roles:
     - slurm-common
-    - account
+    - users
 
 - name: Controller
   hosts: slurm_master
