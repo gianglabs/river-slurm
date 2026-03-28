@@ -9,7 +9,6 @@
   become_user: root
   roles:
     - slurm-common
-    - account
 
 - name: Controller
   hosts: slurm_master
@@ -24,3 +23,10 @@
   become_user: root
   roles:
     - slurm-worker
+
+- name: All nodes
+  hosts: all
+  become: true
+  become_user: root
+  roles:
+    - account
