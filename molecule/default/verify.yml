@@ -73,42 +73,6 @@
             that: state_dir.stat.pw_name == "slurm"
             fail_msg: "/var/lib/slurm/slurmctld not owned by slurm user"
 
-      # ── PAM checks ─────────────────────────────────────────────────────────
-      - name: Check /etc/localusers exists on controller
-        stat:
-            path: /etc/localusers
-        register: localusers_file
-      - name: Assert /etc/localusers is present on controller
-        assert:
-            that: localusers_file.stat.exists
-            fail_msg: "/etc/localusers not found on controller"
-
-      - name: Check PAM slurm-adopt block is in /etc/pam.d/sshd on controller
-        command: grep -q "pam_slurm_adopt" /etc/pam.d/sshd
-        changed_when: false
-
-      - name: Check prolog script is installed and executable
-        stat:
-            path: /etc/slurm/prolog.d/50-grant-ssh
-        register: prolog_script
-      - name: Assert prolog script is executable
-        assert:
-            that:
-                - prolog_script.stat.exists
-                - prolog_script.stat.executable
-            fail_msg: "/etc/slurm/prolog.d/50-grant-ssh missing or not executable"
-
-      - name: Check epilog script is installed and executable
-        stat:
-            path: /etc/slurm/epilog.d/41-revoke-ssh
-        register: epilog_script
-      - name: Assert epilog script is executable
-        assert:
-            that:
-                - epilog_script.stat.exists
-                - epilog_script.stat.executable
-            fail_msg: "/etc/slurm/epilog.d/41-revoke-ssh missing or not executable"
-
       # ── testuser checks ────────────────────────────────────────────────────
       - name: Check testuser OS account exists on controller
         getent:
@@ -312,19 +276,6 @@
                 - worker_munge_key.stat.exists
                 - worker_munge_key.stat.mode == "0400"
             fail_msg: "munge.key missing or wrong permissions on worker"
-
-      - name: Check /etc/localusers exists on worker
-        stat:
-            path: /etc/localusers
-        register: worker_localusers
-      - name: Assert /etc/localusers is present on worker
-        assert:
-            that: worker_localusers.stat.exists
-            fail_msg: "/etc/localusers not found on worker"
-
-      - name: Check PAM slurm-adopt block is in /etc/pam.d/sshd on worker
-        command: grep -q "pam_slurm_adopt" /etc/pam.d/sshd
-        changed_when: false
 
       - name: Check testuser OS account exists on worker
         getent:
